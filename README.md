@@ -138,28 +138,6 @@ docker compose exec bot-ice-breaker python -c "import uvicorn; print('ok')"
 
 ---
 
-## 🌐 Nginx Reverse Proxy (Opsional)
-
-Tambahkan service nginx (jika belum) untuk header keamanan & TLS terminasi.
-Contoh snippet `docker-compose.yml`:
-
-```yaml
-	nginx:
-		image: nginx:1.27-alpine
-		depends_on:
-			- bot-ice-breaker
-		ports:
-			- "80:80"
-		volumes:
-			- ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-		restart: unless-stopped
-```
-
-Konfigurasi di `nginx/nginx.conf` mem-_proxy_ ke `bot-ice-breaker:7860`.
-Gunakan Certbot / Caddy / Traefik untuk HTTPS.
-
----
-
 ## 🩺 Health Check & Observabilitas
 
 Docker healthcheck default melakukan `curl` ke root. Disarankan endpoint khusus `/healthz` agar jelas status aplikasi. Tambahkan juga metric endpoint (misal dengan Prometheus FastAPI middleware) pada fase lanjut.
