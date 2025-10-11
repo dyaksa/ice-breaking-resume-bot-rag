@@ -1,0 +1,57 @@
+services:
+  bot-ice-breaker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-7860}:${PORT:-7860}"
+    environment:
+      - PORT=${PORT:-7860}
+      - HUGGINGFACE_MODEL_EMBEDDING=${HUGGINGFACE_MODEL_EMBEDDING}
+      - HUGGINGFACE_MODEL_LLM=${HUGGINGFACE_MODEL_LLM}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+      - TOP_K=${TOP_K:-5}
+      - TOP_P=${TOP_P:-0.95}
+      - MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-512}
+      - MIN_NEW_TOKENS=${MIN_NEW_TOKENS:-256}
+      - TEMPERATURE=${TEMPERATURE:-0.1}
+      - CHUNK_SIZE=${CHUNK_SIZE:-400}
+      - SIMILARITY_TOP_K=${SIMILARITY_TOP_K:-7}
+    command:
+      ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "${PORT:-7860}"]
+    volumes:
+      # Only mount logs and temp directories for persistence
+      - ./logs:/app/logs # Persist logs
+      # Removed ./temp:/app/temp because /app/temp is provided as a tmpfs (ephemeral)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-7860}/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Read-only root filesystem (except mounted volumes)
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /app/temp:noexec,nosuid,size=200m # Ephemeral storage for temporary processing
+    networks:
+      - bot-network
+
+networks:
+  bot-network:
+    driver: bridge
