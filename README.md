@@ -60,63 +60,7 @@ The app can also use HuggingFace hosted models for embeddings and (optionally) g
 
 ---
 
-## 🏗 Arsitektur Aplikasi (FastAPI + Gradio)
-
-Gradio UI sekarang di-_mount_ pada instance **FastAPI** menggunakan `gr.mount_gradio_app(app, create_gradio_interface(), path="/")`, sehingga kita dapat:
-
-- Menambah endpoint REST (mis. `/healthz`, `/metrics`, `/sessions`).
-- Menjalankan server produksi dengan **Uvicorn/Gunicorn**.
-- Integrasi mudah dengan reverse proxy (Nginx / Caddy / Traefik) untuk TLS & header keamanan.
-
-Alur utama:
-
-1. Upload PDF → `extract_profile_pdf.py` mengekstrak teks.
-2. Split teks → `data_processing.py` membuat potongan (nodes) dan index vektor.
-3. Prompt awal → `generate_facts_candidate()` menghasilkan ringkasan kandidat.
-4. Pertanyaan user → `answer_user_question()` melakukan retrieval (RAG) + jawaban kontekstual.
-5. Gradio di-_mount_ pada root path FastAPI (`/`).
-
----
-
-## 🔀 Mode Menjalankan
-
-| Mode              | Perintah                                      | Kapan digunakan             | Catatan                             |
-| ----------------- | --------------------------------------------- | --------------------------- | ----------------------------------- |
-| Gradio langsung   | `python app.py`                               | Eksplorasi cepat / debug UI | Tidak perlu FastAPI, fitur terbatas |
-| FastAPI + Uvicorn | `uvicorn app:app --host 0.0.0.0 --port 7860`  | Produksi ringan             | Dapat tambah endpoint lain          |
-| Docker (dev)      | `docker compose up -d`                        | Lingkungan terisolasi       | Port 7860 dipetakan ke host         |
-| Docker + Nginx    | `docker compose up -d` (dengan service nginx) | Reverse proxy, siap TLS     | Akses melalui port 80 / 443         |
-
-> Gunakan Uvicorn untuk performa & kontrol. Tambahkan `--workers 2` jika beban mulai naik (hindari terlalu banyak worker bila model embedding/LLM berat).
-
----
-
-## ▶️ Jalankan Lokal (FastAPI + Uvicorn)
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # isi token & API keys
-uvicorn app:app --host 0.0.0.0 --port ${PORT:-7860}
-```
-
-Akses: http://localhost:7860
-
-Endpoint custom (opsional) contoh:
-
-```python
-# Tambahkan sebelum mount gradio di app.py
-@app.get("/healthz")
-def health():
-		return {"status": "ok"}
-```
-
----
-
 ## 🐳 Docker (FastAPI + Uvicorn)
-
-Compose menjalankan:
 
 ```yaml
 command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
@@ -134,74 +78,6 @@ Tes import uvicorn:
 
 ```bash
 docker compose exec bot-ice-breaker python -c "import uvicorn; print('ok')"
-```
-
----
-
-## 🩺 Health Check & Observabilitas
-
-Docker healthcheck default melakukan `curl` ke root. Disarankan endpoint khusus `/healthz` agar jelas status aplikasi. Tambahkan juga metric endpoint (misal dengan Prometheus FastAPI middleware) pada fase lanjut.
-
----
-
-## 🛡 Keamanan Tambahan
-
-- Jangan log isi lengkap resume (PII). Sanitasi atau ringkas.
-- Gunakan `read_only: true` + non-root user (sudah di Dockerfile/compose).
-- Set `share=False` di Gradio untuk mencegah tunneling publik otomatis.
-- Rate limiting bisa ditambah via Nginx (`limit_req_zone`).
-- Pertimbangkan Web Application Firewall jika dipublikasikan.
-
----
-
-## 🔧 Variabel Lingkungan Tambahan
-
-| Variabel    | Fungsi                                                 |
-| ----------- | ------------------------------------------------------ |
-| `BIND_HOST` | Override host binding (default `0.0.0.0` di container) |
-
----
-
-## ⚠️ Debug Umum
-
-| Masalah                        | Penyebab                                | Solusi                                            |
-| ------------------------------ | --------------------------------------- | ------------------------------------------------- |
-| `ModuleNotFoundError: uvicorn` | Uvicorn belum terinstall dalam image    | Pastikan ada di `requirements.txt`, rebuild image |
-| Tidak bisa akses dari browser  | Server bind ke `127.0.0.1` di container | Pastikan host = `0.0.0.0` / override `BIND_HOST`  |
-| Respon lambat                  | Chunk besar / top_k terlalu tinggi      | Kurangi `CHUNK_SIZE` / `SIMILARITY_TOP_K`         |
-| API Key invalid                | Token salah / belum di-set              | Revisi `.env` dan rebuild                         |
-
----
-
-## 🔄 Update Production Singkat
-
-```bash
-git pull
-docker compose build --no-cache
-docker compose up -d --force-recreate
-```
-
----
-
-## ✅ Quickstart (Ringkas)
-
-```bash
-# Lokal (FastAPI + Gradio)
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # isi API keys
-uvicorn app:app --host 0.0.0.0 --port 7860
-```
-
-```bash
-# Docker
-cp .env.example .env
-docker compose up -d --build
-```
-
-```bash
-# Tambah Nginx (optional)
-# Pastikan nginx/nginx.conf ada lalu tambahkan service nginx di compose
 ```
 
 ---
@@ -277,12 +153,6 @@ python app.py
 ```
 
 Access the UI at: `http://127.0.0.1:7860`
-
-### 4. (Optional) Use `main.py` for CLI Testing
-
-```bash
-python main.py /path/to/resume.pdf
-```
 
 ---
 
