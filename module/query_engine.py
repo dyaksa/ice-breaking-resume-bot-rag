@@ -12,7 +12,7 @@ def generate_facts_candidate(index: VectorStoreIndex) -> str:
     try:
         model_llm = create_model_llm(
             temperature=0.1,
-            max_new_tokens=500,
+            max_new_tokens=1000,
         )
 
         prompt_template = """
@@ -60,6 +60,7 @@ def answer_user_question(index: VectorStoreIndex, question: str) -> Any:
         nodes = base_retriever.retrieve(question)
 
         context_str = "\n\n".join([node.node.get_text() for node in nodes])
+        logger.info(f"Context for question: {context_str}")
 
         prompt_template = f"""
         You are an expert in recruiting talent who helps determine the best candidates on resume profiles.
@@ -68,7 +69,10 @@ def answer_user_question(index: VectorStoreIndex, question: str) -> Any:
         context information is below:
         {context_str}
 
-        If you don't know the answer, just say you don't know, don't try to make up a false answer.
+        Query: {question}
+        Answer in full details, using only the information provided in the context. 
+        If the answer is not available in the context, say "I don't know. 
+        The information is not available on the resume page.
         """
 
         user_question_template = PromptTemplate(template=prompt_template)
